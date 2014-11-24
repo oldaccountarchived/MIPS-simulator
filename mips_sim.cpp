@@ -5,13 +5,6 @@
 #include <sstream>
 #include <iostream>
 #include <bitset>
-#include <unistd.h> 
-
-std::string shift2( std::string bitstr ) { // Shift bitstrings by 2
-    std::stringstream s;
-    s << bitstr << "00";
-    return s.str(); 
-}
 
 unsigned int pow( int num, int power ) { // For raising to powers of 2
     int val = 1;
@@ -22,20 +15,21 @@ unsigned int pow( int num, int power ) { // For raising to powers of 2
 }
 
 int btoi( std::string bitstr ) { // Convert bitstrings to ints.
-    bitstr.erase(bitstr.find_last_not_of(" \n\r\t")+1);
+    // Strip out those newlines.
+    bitstr.erase(bitstr.find_last_not_of(" \n\r\t") + 1);
     int val = 0;
     bool isNeg = false;
-    std::stringstream s; 
+    std::stringstream bitstr_out; 
     if ( bitstr.at(0) == '1' ) {
         isNeg = true;
         for ( int i = 0; i != bitstr.length(); ++i ) {
             if ( bitstr.at(i) == '1' ) {
-                s << '0';
+                bitstr_out << '0';
             } else if ( bitstr.at(i) == '0' ) {
-                s << '1';
+                bitstr_out << '1';
             }
         }
-        bitstr = s.str();
+        bitstr = bitstr_out.str();
     }
     for ( int i = bitstr.length() - 1; i >= 0; --i ) {
         if ( bitstr.at(i) == '1' ) {
@@ -107,26 +101,25 @@ int main() {
     for( int i = 0; i != 32; ++i ) {
         r[i] = 0;
     }
-
-    std::ifstream infile("sample2.txt");
+    std::ifstream infile("sample.txt");
     std::string str;
     std::vector<std::string> bins;
-    int data_index = bins.size();
+    int data_index = 0;
     while( getline( infile, str ) ) {
         bins.push_back( str ); // Saving for easier jumps.
-        if ( str.substr(0,6).compare("000101") ) {
+        if ( !str.substr(0,6).compare("000101") ) {
             data_index = bins.size();
         }
     }
-
-    int cycle = 1;
-    
-    for ( int i = 0; i != data_index; ++i ) {
-        std::cout << "cycle: " << cycle << std::endl;
+    if (data_index == 0)
+        data_index = bins.size();
+    std::vector<std::string> dsm(bins);
+    std::stringstream dsm_out;
+    int cycle = 0;
+    for ( int i = 0; i < data_index; ++i ) {
         cycle++;
-        std::cout << "ran: " << bins[i] << std::endl;
         int opcode;
-        int category = std::stoi( bins[i].substr(0, 2) ); 
+        int category = std::stoi( bins[i].substr(0, 2) );
         switch ( category ) {
         case 0: {
             opcode = std::stoi( bins[i].substr(2,4) );
@@ -134,6 +127,9 @@ int main() {
             case 0: { // J Instruction
                 int imd = ( btoi( bins[i].substr(6, 26) ) * 4 );
                 i = (( imd - 128 ) / 4) - 1; // Go to that index
+                dsm_out << bins[i] << "/t" << "J #" << imd;
+                dsm[i] = dsm_out.str();
+                dsm_out.clear();
                 break;
             }
             case 10: { // BEQ
@@ -210,26 +206,54 @@ int main() {
             int rt = btoi( bins[i].substr(7,5) );
             int imd = btoi( bins[i].substr(16, 16) );
             switch ( opcode ) {
-            case 0: //ADDI
+            case 0: // ADDI
                 ADDI( rs, rt, imd, r );
                 break;
-            case 1: //ANDI
+            case 1: // ANDI
                 ANDI( rs, rt, imd, r );
                 break;
-            case 10: //ORI
+            case 10: // ORI
                 ORI( rs, rt, imd, r );
                 break;
-            case 11: //XORI
+            case 11: // XORI
                 XORI( rs, rt, imd, r );
                 break;
             }
             break;
         }
         }
-        std::cout << "REGISTERS" << std::endl;
-        for ( int i = 0; i != 32; ++i )
-            std::cout << r[i] << " ";
+        std::cout << data_index << std::endl;
+        std::cout << "--------------------" << std::endl;
+        std::cout << "Cycle:" << cycle << std::endl << std::endl;
+        std::cout << "Registers" << std::endl;
+        std::cout << "R00:\t";
+        for ( int i = 0; i != 8; ++i )
+            std::cout << r[i] << "\t";
+        std::cout << std::endl;
+        std::cout << "R08:\t";
+        for ( int i = 8; i != 16; ++i )
+            std::cout << r[i] << "\t";
+        std::cout << std::endl;
+        std::cout << "R16:\t";
+        for ( int i = 16; i != 24; ++i )
+            std::cout << r[i] << "\t";
+        std::cout << std::endl;
+        std::cout << "R24:\t";
+        for ( int i = 24; i != 32; ++i )
+            std::cout << r[i] << "\t";
         std::cout << std::endl;
         std::cout << std::endl;
+        if (data_index != bins.size())
+            std::cout << "Data" << std::endl;
+        for (int i = data_index; i < bins.size(); ++i) {
+            if (i == data_index) {
+                std::cout << (128 + (i * 4)) << ":\t";
+            }
+            if ((i - data_index) % 8 == 0 && i != data_index) {
+                std::cout << std::endl;
+                std::cout << (128 + (i * 4)) << ":\t";
+            }
+            std::cout << btoi(bins[i]) << "\t";
+        }
     }
 }
